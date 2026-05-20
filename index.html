@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConChem AI - Construction Chemicals Recommendation Advisor</title>
+    <meta name="description" content="An interactive RAG AI Agent playground for Construction Chemicals. Recommends specific chemical solutions (waterproofing, admixtures, repair mortars, flooring) based on the construction type.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- jsPDF Library for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="app-header">
+            <div class="header-left">
+                <!-- Left Panel Toggle -->
+                <button class="btn-panel-toggle" id="btn-toggle-left-panel" onclick="toggleLeftSidebar()" title="Toggle Scenarios Panel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+                <div class="header-logo">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h1>ConChem<span>AI</span></h1>
+                    <span class="badge">Chemical Advisor</span>
+                </div>
+            </div>
+
+            <nav class="app-nav">
+                <div class="nav-pills">
+                    <button class="nav-tab active" id="btn-tab-agent" onclick="switchTab('agent')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Workspace
+                    </button>
+                    <button class="nav-tab" id="btn-tab-search" onclick="switchTab('search')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Chem Index
+                    </button>
+                    <button class="nav-tab" id="btn-tab-dashboard" onclick="switchTab('dashboard')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                        Dashboard
+                    </button>
+                </div>
+            </nav>
+
+            <div class="header-right">
+                <div class="engine-badge simulated" id="engine-status-badge">
+                    <span class="pulse-dot"></span>
+                    Simulated LLM
+                </div>
+                <button class="btn-icon" id="btn-toggle-config" onclick="toggleConfigModal()" title="Engine Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+                <!-- Right Logs Panel Toggle -->
+                <button class="btn-panel-toggle" id="btn-toggle-right-panel" onclick="toggleRightLogs()" title="Toggle Thought Console">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Grid Workspace -->
+        <main class="app-main">
+            <!-- Sidebar Panel -->
+            <aside class="app-sidebar" id="app-sidebar">
+                <div class="sidebar-section">
+                    <h3>🏗️ Construction Scenarios</h3>
+                    <p class="section-desc">Click a scenario to watch the AI agent analyze and recommend optimal chemical compounds.</p>
+                    <div class="scenario-list">
+                        <button class="btn-scenario" onclick="runScenario('basement_waterproofing')">
+                            <div class="scenario-icon">💧</div>
+                            <div class="scenario-details">
+                                <h4>Basement &amp; Foundation</h4>
+                                <p>Deep sub-structure waterproofing and pore blocking.</p>
+                            </div>
+                        </button>
+                        <button class="btn-scenario" onclick="runScenario('bridge_repair')">
+                            <div class="scenario-icon">🌉</div>
+                            <div class="scenario-details">
+                                <h4>Bridge Structural Repair</h4>
+                                <p>Spalling repairs, CFRP wraps, and epoxy grouts.</p>
+                            </div>
+                        </button>
+                        <button class="btn-scenario" onclick="runScenario('factory_flooring')">
+                            <div class="scenario-icon">🏭</div>
+                            <div class="scenario-details">
+                                <h4>Industrial Flooring</h4>
+                                <p>Heavy-duty chemical, abrasion, and heat-resistant floors.</p>
+                            </div>
+                        </button>
+                        <button class="btn-scenario" onclick="runScenario('skyscraper_concrete')">
+                            <div class="scenario-icon">🏢</div>
+                            <div class="scenario-details">
+                                <h4>High-Rise Foundation</h4>
+                                <p>High-strength, self-compacting concrete admixtures.</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section quick-settings">
+                    <h3>⚙️ Quick Controls</h3>
+                    <div class="control-group">
+                        <label for="select-speed">Agent Step Delay</label>
+                        <select id="select-speed" onchange="updateSpeedSetting(this.value)">
+                            <option value="1500" selected>Standard (Educational)</option>
+                            <option value="500">Fast Mode</option>
+                            <option value="3000">Slow-Mo (Deep Analysis)</option>
+                            <option value="0">Instant (No Delays)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="select-search-source">Search Corpus</label>
+                        <select id="select-search-source" onchange="updateCorpusSetting(this.value)">
+                            <option value="wikipedia">Live Wikipedia API</option>
+                            <option value="mock" selected>ConChem Product Database</option>
+                        </select>
+                    </div>
+                    <div class="engine-indicator-card">
+                        <div class="engine-header">
+                            <span class="engine-title">ACTIVE ENGINE</span>
+                            <button class="btn-text-link" onclick="toggleConfigModal()">Change</button>
+                        </div>
+                        <div class="engine-body" id="active-engine-text">
+                            <strong>Simulated Agent Brain</strong>
+                            <p>Runs offline using highly accurate client-side context parsing and direct chemical specifications matching.</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Middle Workspace Area -->
+            <section class="workspace-viewport">
+                <!-- VIEW 1: AGENT WORKSPACE -->
+                <div class="tab-view active" id="view-agent">
+                    <div class="workspace-grid" id="workspace-grid">
+                        <!-- Chat Area -->
+                        <div class="glass-panel chat-container">
+                            <div class="panel-header">
+                                <div class="header-title">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    ConChem Recommendation Chat
+                                </div>
+                                <button class="btn-secondary btn-small" id="btn-clear-chat" onclick="clearChat()">
+                                    Clear
+                                </button>
+                            </div>
+
+                            <!-- Chat Messages -->
+                            <div class="chat-messages" id="chat-messages-container">
+                                <!-- Welcome Message with Scenario Cards -->
+                                <div class="welcome-block" id="welcome-block">
+                                    <div class="welcome-logo">
+                                        <div class="welcome-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                        </div>
+                                        <h2>ConChem AI</h2>
+                                        <p>Search-augmented Chemical Recommendation Agent for Civil Engineering &amp; Construction.</p>
+                                    </div>
+                                    <div class="welcome-grid">
+                                        <button class="welcome-card" onclick="runScenario('basement_waterproofing')">
+                                            <span class="wc-icon">💧</span>
+                                            <div>
+                                                <strong>Basement &amp; Foundation</strong>
+                                                <span>Waterproofing, crystalline coatings, pore blockers</span>
+                                            </div>
+                                        </button>
+                                        <button class="welcome-card" onclick="runScenario('bridge_repair')">
+                                            <span class="wc-icon">🌉</span>
+                                            <div>
+                                                <strong>Bridge Structural Repair</strong>
+                                                <span>CFRP wraps, epoxy injection, spalling repair</span>
+                                            </div>
+                                        </button>
+                                        <button class="welcome-card" onclick="runScenario('factory_flooring')">
+                                            <span class="wc-icon">🏭</span>
+                                            <div>
+                                                <strong>Industrial Flooring</strong>
+                                                <span>Polyurethane screeds, acid-resistant coatings</span>
+                                            </div>
+                                        </button>
+                                        <button class="welcome-card" onclick="runScenario('skyscraper_concrete')">
+                                            <span class="wc-icon">🏢</span>
+                                            <div>
+                                                <strong>High-Rise Foundation</strong>
+                                                <span>PCE superplasticizers, SCC admixtures</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Prompt Input Bar -->
+                            <div class="chat-input-bar">
+                                <form id="form-agent-prompt" onsubmit="handlePromptSubmit(event)">
+                                    <div class="input-wrapper">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                        <input type="text" id="input-prompt" placeholder="Describe your construction project (e.g. 'waterproofing an underground tunnel basement')..." required autocomplete="off">
+                                        <button type="submit" class="btn-primary" id="btn-send-prompt">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thinking Logs Console -->
+                        <div class="glass-panel logs-container" id="logs-container">
+                            <div class="panel-header">
+                                <div class="header-title">
+                                    <svg class="icon-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+                                    Thought Console
+                                </div>
+                                <div class="console-actions">
+                                    <span class="status-light idle" id="console-status-light"></span>
+                                    <span class="status-text" id="console-status-text">IDLE</span>
+                                </div>
+                            </div>
+                            <div class="logs-viewport" id="logs-viewport-container">
+                                <div class="console-placeholder" id="console-placeholder-msg">
+                                    <div class="placeholder-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    </div>
+                                    <p>Submit a query to watch the agent pipeline execute in real-time.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: SEARCH ENGINE -->
+                <div class="tab-view" id="view-search">
+                    <div class="glass-panel search-engine-panel">
+                        <div class="search-engine-searchbox">
+                            <div class="search-logo">ConChem<span>Database</span></div>
+                            <form id="form-search-engine" onsubmit="handleManualSearch(event)">
+                                <div class="search-input-wrapper">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="input-search-query" placeholder="Search technical datasheets (e.g. polycarboxylate, polyurethane, epoxy)..." required autocomplete="off">
+                                    <button type="submit" class="btn-primary">Search Index</button>
+                                </div>
+                            </form>
+                            <div class="search-source-info" id="search-corpus-status">
+                                Active Corpus: <strong>ConChem Technical Database &amp; Wikipedia API</strong>
+                            </div>
+                        </div>
+
+                        <div class="search-results-layout">
+                            <div class="search-results-list" id="search-results-container">
+                                <div class="search-welcome-screen">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <h3>ConChem Technical Index</h3>
+                                    <p>Search any compound or standard manually to inspect raw specifications parsed directly from chemical product catalogs and structural standards.</p>
+                                </div>
+                            </div>
+                            <aside class="search-crawler-status">
+                                <h4>🕸️ Technical Extractor</h4>
+                                <div class="crawler-stats-card">
+                                    <div class="stat-row"><span>Status</span><span class="stat-val active-status" id="crawler-status-badge">READY</span></div>
+                                    <div class="stat-row"><span>CORS Proxy</span><span class="stat-val text-green">NOT REQUIRED</span></div>
+                                    <div class="stat-row"><span>Bytes Crawled</span><span class="stat-val" id="crawler-bytes-crawled">0 B</span></div>
+                                    <div class="stat-row"><span>Extracted Passages</span><span class="stat-val" id="crawler-passages-count">0</span></div>
+                                </div>
+                                <div class="crawler-log-box" id="crawler-logs">
+                                    <div class="crawler-log-line system-line">[System] Chemical parser ready...</div>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: SYSTEM DASHBOARD -->
+                <div class="tab-view" id="view-dashboard">
+                    <div class="dashboard-grid">
+                        <!-- Card 1: Latency -->
+                        <div class="glass-panel dashboard-card">
+                            <div class="panel-header"><div class="header-title">⚡ Pipeline Latency</div></div>
+                            <div class="card-content">
+                                <p class="card-desc">Processing duration for the current chemical recommendation execution.</p>
+                                <div class="chart-container-mock">
+                                    <div class="latency-bars">
+                                        <div class="latency-bar-group"><div class="latency-label">Semantic Mapping</div><div class="latency-bar-track"><div class="latency-bar-fill fill-keyword" id="chart-bar-keyword" style="width: 0%;"></div></div><div class="latency-val" id="chart-val-keyword">0ms</div></div>
+                                        <div class="latency-bar-group"><div class="latency-label">DB Querying</div><div class="latency-bar-track"><div class="latency-bar-fill fill-search" id="chart-bar-search" style="width: 0%;"></div></div><div class="latency-val" id="chart-val-search">0ms</div></div>
+                                        <div class="latency-bar-group"><div class="latency-label">Spec Scraping</div><div class="latency-bar-track"><div class="latency-bar-fill fill-crawl" id="chart-bar-crawl" style="width: 0%;"></div></div><div class="latency-val" id="chart-val-crawl">0ms</div></div>
+                                        <div class="latency-bar-group"><div class="latency-label">Passage Ranking</div><div class="latency-bar-track"><div class="latency-bar-fill fill-rank" id="chart-bar-rank" style="width: 0%;"></div></div><div class="latency-val" id="chart-val-rank">0ms</div></div>
+                                        <div class="latency-bar-group"><div class="latency-label">RAG Synthesis</div><div class="latency-bar-track"><div class="latency-bar-fill fill-synthesis" id="chart-bar-synthesis" style="width: 0%;"></div></div><div class="latency-val" id="chart-val-synthesis">0ms</div></div>
+                                    </div>
+                                    <div class="total-latency-label">TOTAL ELAPSED: <strong id="chart-total-latency">0ms</strong></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Similarity Matrix -->
+                        <div class="glass-panel dashboard-card">
+                            <div class="panel-header"><div class="header-title">📊 Keyword Similarity Matrix</div></div>
+                            <div class="card-content">
+                                <p class="card-desc">Calculated similarity scores of chemical properties against user construction needs.</p>
+                                <div class="ranking-table-wrapper">
+                                    <table class="ranking-table">
+                                        <thead><tr><th>Doc ID</th><th>Chemical</th><th>Excerpt</th><th>Score</th><th>Action</th></tr></thead>
+                                        <tbody id="ranking-table-body"><tr><td colspan="5" class="empty-table-msg">No active searches performed yet.</td></tr></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Context Window -->
+                        <div class="glass-panel dashboard-card">
+                            <div class="panel-header"><div class="header-title">📥 Context Window</div></div>
+                            <div class="card-content token-dashboard">
+                                <div class="gauge-section">
+                                    <div class="radial-gauge">
+                                        <svg viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="40" class="gauge-bg"/>
+                                            <circle cx="50" cy="50" r="40" class="gauge-fill" id="context-gauge-fill" stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+                                        </svg>
+                                        <div class="gauge-text">
+                                            <span class="gauge-percent" id="context-gauge-percent">0%</span>
+                                            <span class="gauge-lbl">Context Cap</span>
+                                        </div>
+                                    </div>
+                                    <div class="gauge-legend">
+                                        <div class="legend-row"><span class="dot system-dot"></span><span>Civil Eng Prompt: <strong>2,500 tkn</strong></span></div>
+                                        <div class="legend-row"><span class="dot user-dot"></span><span>Construction Query: <strong id="token-user-query">0 tkn</strong></span></div>
+                                        <div class="legend-row"><span class="dot context-dot"></span><span>Technical Datasheets: <strong id="token-searched-context">0 tkn</strong></span></div>
+                                        <div class="legend-row total-row"><span>TOTAL INPUT: <strong id="token-total-input">2,500 tkn</strong></span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Custom Chemical DB -->
+                        <div class="glass-panel dashboard-card">
+                            <div class="panel-header"><div class="header-title">✍️ Add Chemical to Database</div></div>
+                            <div class="card-content corpus-customizer">
+                                <p class="card-desc">Expand the knowledge base by adding new chemical specifications, dosage data, and ASTM codes.</p>
+                                <form id="form-custom-article" onsubmit="handleAddCustomArticle(event)">
+                                    <div class="form-row">
+                                        <div class="form-field"><label for="article-title">Chemical / Product Name</label><input type="text" id="article-title" placeholder="e.g. SikaGrout 214" required></div>
+                                        <div class="form-field"><label for="article-category">Chemical Category</label><input type="text" id="article-category" placeholder="e.g. Repair Grout" required></div>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="article-content">Technical Specification (Dosage, ASTM, application guidelines)</label>
+                                        <textarea id="article-content" rows="4" placeholder="e.g. Polycarboxylate ether based superplasticizer. Complies with ASTM C494 Type F. Recommended dosage: 0.5% - 2.0% by weight of cementitious materials..." required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-full" id="btn-save-article">Save Chemical to Index</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Engine Settings Modal -->
+    <div class="modal-backdrop" id="modal-config">
+        <div class="modal-window glass-panel">
+            <div class="modal-header">
+                <h2>⚙️ AI Agent Engine Configuration</h2>
+                <button class="btn-icon" onclick="toggleConfigModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="engine-option-cards">
+                    <label class="engine-card-label">
+                        <input type="radio" name="engine-mode-radio" value="simulated" checked onclick="selectEngineMode('simulated')">
+                        <div class="engine-selection-card">
+                            <div class="card-radio-dot"></div>
+                            <div class="card-info">
+                                <h3>Simulated Agent Brain (No API Key Required)</h3>
+                                <p>Uses an advanced client-side semantic parser. Automatically maps factual assertions from searched documents into synthesized chat responses with interactive source citations.</p>
+                                <span class="card-badge speed-badge">Offline &amp; High-Speed</span>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="engine-card-label">
+                        <input type="radio" name="engine-mode-radio" value="gemini" onclick="selectEngineMode('gemini')">
+                        <div class="engine-selection-card">
+                            <div class="card-radio-dot"></div>
+                            <div class="card-info">
+                                <h3>Live Gemini API (Real RAG LLM Synthesis)</h3>
+                                <p>Sends user prompts and scraped web page contexts straight to Google's official Gemini LLM. Generates rich, accurate, and fully coherent search-augmented responses.</p>
+                                <span class="card-badge api-badge">Live API Connection</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="api-key-form-section" id="api-key-form-container" style="display: none;">
+                    <div class="form-field">
+                        <label for="input-gemini-key">Enter Gemini API Key</label>
+                        <div class="input-password-wrapper">
+                            <input type="password" id="input-gemini-key" placeholder="AIzaSy...">
+                            <button type="button" class="btn-text-link" id="btn-toggle-key-visibility" onclick="toggleKeyVisibility()">Show</button>
+                        </div>
+                        <p class="field-help">Your API Key is kept <strong>strictly inside this browser window</strong> in localStorage. It is transmitted directly to the official Google Gemini API endpoint.</p>
+                    </div>
+                    <div class="form-field">
+                        <label for="select-gemini-model">Select Gemini Model</label>
+                        <select id="select-gemini-model">
+                            <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Recommended)</option>
+                            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                            <option value="gemini-1.5-pro">gemini-1.5-pro (High intelligence, slower)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="toggleConfigModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveEngineConfig()">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="app.js"></script>
+</body>
+</html>

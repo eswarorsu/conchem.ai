@@ -301,6 +301,12 @@ body::after {
   border: 1px solid rgba(77, 159, 255, 0.3);
 }
 
+.engine-badge.groq {
+    background: rgba(249, 115, 22, 0.06);
+    border-color: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
 .pulse-dot {
   width: 6px;
   height: 6px;

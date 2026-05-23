@@ -53,6 +53,8 @@ const state = {
     engineMode: 'simulated',
     geminiKey: localStorage.getItem('nova_gemini_key') || '',
     geminiModel: 'gemini-2.5-flash',
+    groqKey: localStorage.getItem('nova_groq_key') || '',
+    groqModel: localStorage.getItem('nova_groq_model') || 'llama-3.3-70b-versatile',
     chatHistory: [],
     currentCrawlBytes: 0,
     currentCrawlPassages: 0,
@@ -70,11 +72,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // Engine config
     if (state.geminiKey) {
         document.getElementById('input-gemini-key').value = state.geminiKey;
-        const savedMode = localStorage.getItem('nova_engine_mode') || 'simulated';
-        setEngineModeUI(savedMode);
-    } else {
-        setEngineModeUI('simulated');
     }
+    if (state.groqKey) {
+        document.getElementById('input-groq-key').value = state.groqKey;
+    }
+    const savedGroqModel = localStorage.getItem('nova_groq_model');
+    if (savedGroqModel) {
+        const groqModelSelect = document.getElementById('select-groq-model');
+        if (groqModelSelect) groqModelSelect.value = savedGroqModel;
+    }
+    const savedMode = localStorage.getItem('nova_engine_mode') || 'simulated';
+    setEngineModeUI(savedMode);
 
     updateCorpusSetting(state.searchSource);
 
@@ -164,7 +172,8 @@ function toggleConfigModal() {
 }
 
 function selectEngineMode(mode) {
-    document.getElementById('api-key-form-container').style.display = mode === 'gemini' ? 'block' : 'none';
+    document.getElementById('gemini-config-section').style.display = mode === 'gemini' ? 'block' : 'none';
+    document.getElementById('groq-config-section').style.display = mode === 'groq' ? 'block' : 'none';
 }
 
 function setEngineModeUI(mode) {
@@ -175,39 +184,57 @@ function setEngineModeUI(mode) {
 
     radios.forEach(radio => { if (radio.value === mode) radio.checked = true; });
 
+    // Hide all config sections first
+    document.getElementById('gemini-config-section').style.display = 'none';
+    document.getElementById('groq-config-section').style.display = 'none';
+
     if (mode === 'gemini') {
         badge.className = "engine-badge real";
         badge.innerHTML = `<span class="pulse-dot"></span>Gemini RAG`;
         desc.innerHTML = `<strong>Live Gemini API (${state.geminiModel})</strong><p>Using Google Gemini REST endpoint for cited RAG.</p>`;
-        document.getElementById('api-key-form-container').style.display = 'block';
+        document.getElementById('gemini-config-section').style.display = 'block';
+    } else if (mode === 'groq') {
+        badge.className = "engine-badge groq";
+        badge.innerHTML = `<span class="pulse-dot"></span>Groq RAG`;
+        desc.innerHTML = `<strong>Live Groq API (${state.groqModel})</strong><p>Using Groq high-speed LLM endpoint for cited RAG.</p>`;
+        document.getElementById('groq-config-section').style.display = 'block';
     } else {
         badge.className = "engine-badge simulated";
         badge.innerHTML = `<span class="pulse-dot"></span>Simulated LLM`;
         desc.innerHTML = `<strong>Simulated Agent Brain</strong><p>Offline context parser & direct chemical matching.</p>`;
-        document.getElementById('api-key-form-container').style.display = 'none';
     }
 }
 
-function toggleKeyVisibility() {
-    const input = document.getElementById('input-gemini-key');
-    const btn = document.getElementById('btn-toggle-key-visibility');
+function toggleKeyVisibility(inputId, btnId) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
     if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
     else { input.type = 'password'; btn.textContent = 'Show'; }
 }
 
 function saveEngineConfig() {
     const mode = document.querySelector('input[name="engine-mode-radio"]:checked').value;
-    const keyVal = document.getElementById('input-gemini-key').value.trim();
-    const modelVal = document.getElementById('select-gemini-model').value;
+    const geminiKeyVal = document.getElementById('input-gemini-key').value.trim();
+    const geminiModelVal = document.getElementById('select-gemini-model').value;
+    const groqKeyVal = document.getElementById('input-groq-key').value.trim();
+    const groqModelVal = document.getElementById('select-groq-model').value;
 
-    if (mode === 'gemini' && !keyVal) {
-        alert("Please enter a valid Gemini API Key to enable Live RAG Mode!");
+    if (mode === 'gemini' && !geminiKeyVal) {
+        alert("Please enter a valid Gemini API Key to enable Live Gemini RAG Mode!");
+        return;
+    }
+    if (mode === 'groq' && !groqKeyVal) {
+        alert("Please enter a valid Groq API Key to enable Live Groq RAG Mode!");
         return;
     }
 
-    state.geminiKey = keyVal;
-    state.geminiModel = modelVal;
-    localStorage.setItem('nova_gemini_key', keyVal);
+    state.geminiKey = geminiKeyVal;
+    state.geminiModel = geminiModelVal;
+    state.groqKey = groqKeyVal;
+    state.groqModel = groqModelVal;
+    localStorage.setItem('nova_gemini_key', geminiKeyVal);
+    localStorage.setItem('nova_groq_key', groqKeyVal);
+    localStorage.setItem('nova_groq_model', groqModelVal);
     localStorage.setItem('nova_engine_mode', mode);
     setEngineModeUI(mode);
     toggleConfigModal();
@@ -479,6 +506,8 @@ async function handlePromptSubmit(event) {
 
         if (state.engineMode === 'gemini') {
             synthesizedText = await runGeminiSynthesis(query, rankedPassages.slice(0, 4));
+        } else if (state.engineMode === 'groq') {
+            synthesizedText = await runGroqSynthesis(query, rankedPassages.slice(0, 4));
         } else {
             await delay(state.agentSpeed);
             synthesizedText = runSimulatedSynthesis(query, rankedPassages.slice(0, 4));
@@ -1265,6 +1294,60 @@ DO NOT invent citations. DO NOT add a references section at the bottom.`;
         return data.candidates[0].content.parts[0].text;
     } catch (err) {
         throw new Error(`Gemini Synthesis: ${err.message}`);
+    }
+}
+
+async function runGroqSynthesis(query, topPassages) {
+    if (!state.groqKey) {
+        throw new Error("Groq API Key is missing. Configure it in Settings.");
+    }
+
+    const contextString = topPassages.map((p, idx) =>
+        `[SOURCE ${idx + 1}] Title: ${p.source}\nURL: ${p.url}\nContent:\n"${p.text}"`
+    ).join("\n\n---\n\n");
+
+    const systemPrompt = `You are ConChem AI, a Construction Chemicals Advisor.
+Answer using ONLY the provided spec sheets.
+Write detailed technical recommendations with chemical classes, dosages, ASTM/EN standards.
+Cite every fact using [1], [2], [3] etc.
+DO NOT invent citations. DO NOT add a references section at the bottom.
+Format your response using markdown with ### headers for sections and #### for sub-sections, and - bullets for properties.`;
+
+    const requestBody = {
+        model: state.groqModel,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Retrieved Technical Datasheets:\n${contextString}\n\nUser Construction Query: "${query}"\n\nProvide a detailed technical chemical recommendation:` }
+        ],
+        temperature: 0.4,
+        max_tokens: 4096
+    };
+
+    const endpoint = `https://api.groq.com/openai/v1/chat/completions`;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${state.groqKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(`Groq API: ${errData.error ? errData.error.message : `HTTP ${response.status}`}`);
+        }
+
+        const data = await response.json();
+        if (!data.choices || !data.choices[0]?.message?.content) {
+            throw new Error("Invalid Groq response structure.");
+        }
+
+        return data.choices[0].message.content;
+    } catch (err) {
+        throw new Error(`Groq Synthesis: ${err.message}`);
     }
 }
 
